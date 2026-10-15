@@ -21,6 +21,32 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
+      - name: Calculate Version
+        id: semver
+        run: |
+          set -e
+          VERSION_FILE=".github/version.txt"
+          
+          if [ -f "$VERSION_FILE" ]; then
+            CURRENT_VERSION=$(cat "$VERSION_FILE" | tr -d '[:space:]')
+          else
+            CURRENT_VERSION="v1.0.0"
+          fi
+          
+          echo "当前记录版本: $CURRENT_VERSION"
+          
+          CLEAN_VER=${CURRENT_VERSION#v}
+          MAJOR=$(echo "$CLEAN_VER" | cut -d. -f1)
+          MINOR=$(echo "$CLEAN_VER" | cut -d. -f2)
+          PATCH=$(echo "$CLEAN_VER" | cut -d. -f3)
+          
+          PATCH=$((PATCH + 1))
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "计算后新版本: $NEW_VERSION"
+          
+          echo "VERSION=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "$NEW_VERSION" > "$VERSION_FILE"
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -49,10 +75,37 @@ jobs:
             linux/amd64
             linux/arm64
           tags: |
+            ghcr.io/${{ github.repository_owner }}/cloud-syncer:${{ steps.semver.outputs.VERSION }}
             ghcr.io/${{ github.repository_owner }}/cloud-syncer:latest
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/cloud-syncer:${{ steps.semver.outputs.VERSION }}
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/cloud-syncer:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Commit and Push New Version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          git add .github/version.txt
+          if git diff --staged --quiet; then
+            echo "版本文件无变化"
+          else
+            git commit -m "chore: manual bump version to ${{ steps.semver.outputs.VERSION }}"
+            for i in {1..3}
+            do
+              if git push; then
+                echo "版本号回写成功"
+                break
+              else
+                sleep 5
+                git pull --rebase
+              fi
+              if [ $i -eq 3 ]; then
+                exit 1
+              fi
+            done
+          fi
 
       - name: Delete untagged images from GHCR
         uses: Chizkiyahu/delete-untagged-ghcr-action@v6
@@ -68,11 +121,12 @@ jobs:
         if: always()
         run: |
           echo "=========================================="
-          echo "✅ Cloud Syncer 手动构建并推送成功"
+          echo "✅ cloud-syncer 手动构建并推送成功"
+          echo "📦 版本号: ${{ steps.semver.outputs.VERSION }}"
           echo ""
           echo "🏷️ 推送标签:"
+          echo "  - ghcr.io/${{ github.repository_owner }}/cloud-syncer:${{ steps.semver.outputs.VERSION }}"
           echo "  - ghcr.io/${{ github.repository_owner }}/cloud-syncer:latest"
-          echo "  - docker.io/${{ secrets.DOCKERHUB_USERNAME }}/cloud-syncer:latest"
           echo "=========================================="
 
   cleanup:
