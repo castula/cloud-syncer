@@ -1,0 +1,11 @@
+services:
+  cloud-syncer:
+    image: spousal4806/cloud-syncer:latest
+    container_name: cloud-syncer
+    restart: always
+    network_mode: host
+    volumes:
+      - ./config:/app/config                           # 配置文件目录（若为空会自动生成默认 config.yaml）
+    # - ./backups:/backups                             # 可选：将备份目录映射到宿主机，方便手动查看
+    # - /xxx:/xxx                                      # 挂载需要同步的目标宿主机目录
+      - /var/run/docker.sock:/var/run/docker.sock:ro   # 挂载 Docker 守护进程套接字
