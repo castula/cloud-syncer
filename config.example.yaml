@@ -1,0 +1,118 @@
+# ==============================================================================
+# Cloud File Syncer - 配置文件模板
+# ==============================================================================
+
+global:
+  # 设备备注名称
+  # 用于在日志和 Webhook 通知中识别当前服务器，留空则默认使用系统主机名。
+  device_name: "HK-Node-01"
+  
+  # 随机延迟最大秒数
+  # 每次执行前随机等待 0 到该数值之间的秒数（0 表示不延迟）。
+  # 用于打散多台 VPS 同时请求云端服务器的并发压力。
+  jitter_max: 15
+  
+  # --------------------------------------------------------------------------
+  # 全局异常自动回滚总开关 (true / false)
+  # 说明：此项为全局默认值。如果子任务未单独设置，则自动继承此处；若子任务中
+  #      显式设置了该字段，则以子任务内的设置为准。
+  # --------------------------------------------------------------------------
+  rollback_on_failure: true
+  
+  # 备份文件夹定期清理周期
+  # 当开启回滚机制时，自动清空 /backups 备份文件夹的 Cron 表达式。
+  # 示例表示每 3 天的凌晨 4 点清空一次，留空则代表不自动清理。
+  backup_clean_cron: "0 4 */3 * *"
+  
+  # Webhook 通知设置
+  # 支持通用 JSON 接口、飞书、钉钉、企业微信、Bark、Telegram 等。
+  webhook:
+    url: ""
+    # 通知触发级别: 
+    #   "all"        - 更新成功或发生异常回滚时均发送通知
+    #   "error_only" - 仅在校验失败、动作异常或触发回滚时发送告警（推荐多节点防刷屏使用）
+    notify_on: "all"
+    # 自定义请求头（可选，部分自建接口可能需要 Token 鉴权）
+    secret_header: ""
+
+# ==============================================================================
+# 同步任务列表 (Tasks)
+# 初次生成时默认为空，请根据实际需求取消下方任务示例的注释并按需修改。
+# ==============================================================================
+tasks: []
+
+# ------------------------------------------------------------------------------
+# 【配置示例】常用服务同步任务示范：
+# ------------------------------------------------------------------------------
+# tasks:
+#   # 示例 1：通过 Cloudflare R2 同步 Nginx 反代配置
+#   - name: "nginx-proxy"
+#     cron: "*/5 * * * *"
+#     local_path: "/data/nginx/conf.d/proxy.conf"
+#     
+#     # ----------------------------------------------------------------------
+#     # 【重要说明】关于自动回滚机制 (rollback_on_failure) 的适用范围：
+#     # 1. 自动回滚机制深度依赖 Docker 容器生命周期管理。
+#     # 2. 当且仅当后置动作（on_update）中配置了对 Docker 容器的操作
+#     #    （如 restart_container 或 signal_container）时，如果更新后目标容器
+#     #    启动失败或崩溃，脚本才会触发自动回滚：将配置文件从 /backups 还原
+#     #    并尝试重启容器。
+#     # 3. 如果是纯文件同步且没有管理 Docker 容器，它仅作为本地配置文件的
+#     #    版本备份保留，不会联动重启服务。
+#     # ----------------------------------------------------------------------
+#     rollback_on_failure: true 
+#
+#     provider:
+#       type: "r2"
+#       url: "https://r2.yourdomain.com/nginx/proxy.conf"
+#       cf_client_id: "your-cf-access-client-id.access"
+#       cf_client_secret: "cfast_xxxxxxxxxxxxxxxxxxxx"
+#     validation:
+#       format: "text"                 # 可选: json / yaml / toml / text
+#       min_size: 50                   # 最小字节数限制，防止下载到空文件或错误页面
+#     on_update:
+#       - "signal_container:nginx:SIGHUP" # 内置动作：向目标 Nginx 容器发送平滑重载信号
+#
+#   # 示例 2：通过 GitHub Gist 同步 Caddy 配置文件
+#   - name: "caddy-site"
+#     cron: "*/10 * * * *"
+#     local_path: "/data/caddy/Caddyfile"
+#     provider:
+#       type: "gist"
+#       gist_id: "a1b2c3d4e5f6g7h8i9j0"
+#       filename: "Caddyfile"
+#       github_token: "ghp_xxxxxxxxxxxxxxxxxxxxxx"
+#     validation:
+#       format: "text"
+#       min_size: 20
+#     on_update:
+#       - "signal_container:caddy:SIGHUP"
+#
+#   # 示例 3：通过 WebDAV 同步 Redis 缓存服务配置
+#   - name: "redis-cache"
+#     cron: "0 */1 * * *"
+#     local_path: "/data/redis/redis.conf"
+#     provider:
+#       type: "webdav"
+#       url: "https://dav.example.com/redis/redis.conf"
+#       username: "admin"
+#       password: "your_password"
+#     validation:
+#       format: "text"
+#       min_size: 100
+#     on_update:
+#       - "restart_container:redis"      # 内置动作：重启 Redis 容器并检查其存活状态
+#
+#   # 示例 4：通过 HTTPS 直链下载网关路由规则 YAML
+#   - name: "gateway-rules"
+#     cron: "0 3 * * *"
+#     local_path: "/data/gateway/rules.yaml"
+#     provider:
+#       type: "url"
+#       url: "https://example.com/public/gateway-rules.yaml"
+#       custom_header: ""
+#     validation:
+#       format: "yaml"
+#       min_size: 50
+#     on_update:
+#       - ""
