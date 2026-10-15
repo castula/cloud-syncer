@@ -14,7 +14,7 @@ CONFIG_DIR=$(dirname "$CONFIG_FILE")
 mkdir -p "$CONFIG_DIR" /backups /tmp/syncer_state
 
 echo "=================================================="
-echo "          Cloud File Syncer - Starting          "
+echo "          Cloud Syncer - Starting          "
 echo "=================================================="
 
 # 1. 若检测不到配置文件，自动生成带有友好注释的默认配置
