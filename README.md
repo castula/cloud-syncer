@@ -1,7 +1,7 @@
 # Cloud Syncer 🚀
 
 > 多节点配置文件云端自动化同步、热更新与故障自愈引擎
-> 本仓库 Dockerfile、核心 Shell 脚本、CI/CD Workflow 均由 ChatGPT 辅助设计并编写完成。
+> 本仓库 Dockerfile、核心 Shell 脚本、CI/CD Workflow 均由 Gemini 4 Argon 辅助设计并编写完成。
 
 ---
 
